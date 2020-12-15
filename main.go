@@ -25,11 +25,11 @@ var config = struct {
 	ListenAddr   string
 	Expires      int
 	AutoInvite   bool
-	CatelogCallback string
-	RemoveCallback  string
 	MediaPortMin uint16
 	MediaPortMax uint16
-}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300}
+	CatelogCallback string
+	RemoveCallback  string
+}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300,"",""}
 
 func init() {
 	InstallPlugin(&PluginConfig{
@@ -66,7 +66,7 @@ func run() {
 		MediaIdleTimeout: 30,
 	}
 	s := transaction.NewCore(config)
-	s.OnInvite = onPublish // ÍÆÁ÷
+	s.OnInvite = onPublish // ï¿½ï¿½ï¿½ï¿½
 	server = s
 	http.HandleFunc("/gb28181/list", func(w http.ResponseWriter, r *http.Request) {
 		sse := util.NewSSE(w, r.Context())
@@ -125,10 +125,10 @@ func run() {
 		}
 	})
 
-	http.HandleFunc("/gb28181/listAll", ListAll)       //Éè±¸ÁÐ±í
-	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //²éÑ¯Â¼Ïñ
-	http.HandleFunc("/gb28181/playBack", Playback)     // ²éÑ¯ºó²¥·ÅÂ¼Ïñ
-	http.HandleFunc("/gb28181/playRecord", PlayRecord) // ²éÑ¯²¢²¥·ÅÂ¼Ïñ ºÏ²¢ÉÏÃæÁ½¸ö½Ó¿Ú
+	http.HandleFunc("/gb28181/listAll", ListAll)       //ï¿½è±¸ï¿½Ð±ï¿½
+	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //ï¿½ï¿½Ñ¯Â¼ï¿½ï¿½
+	http.HandleFunc("/gb28181/playBack", Playback)     // ï¿½ï¿½Ñ¯ï¿½ó²¥·ï¿½Â¼ï¿½ï¿½
+	http.HandleFunc("/gb28181/playRecord", PlayRecord) // ï¿½ï¿½Ñ¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ ï¿½Ï²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¿ï¿½
 	s.Start()
 }
 func onPublish(channel *transaction.Channel, streamUrl string) (port int) {
