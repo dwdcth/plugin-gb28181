@@ -64,6 +64,8 @@ func run() {
 		MediaPortMin:     config.MediaPortMin,
 		MediaPortMax:     config.MediaPortMax,
 		MediaIdleTimeout: 30,
+		CatelogCallback:  config.CatelogCallback,
+		RemoveCallback:   config.RemoveCallback,
 	}
 	s := transaction.NewCore(config)
 	s.OnInvite = onPublish // 推流
