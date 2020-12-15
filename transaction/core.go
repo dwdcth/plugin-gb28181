@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"sync"
@@ -29,7 +30,7 @@ type Core struct {
 	tp           transport.ITransport        //transport
 	config       *Config                     //sip server配置信息
 	Devices      sync.Map
-	OnInvite     func(*Channel) int
+	OnInvite     func(*Channel,string) int
 }
 
 //初始化一个 Core，需要能响应请求，也要能发起请求
