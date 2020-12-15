@@ -20,16 +20,16 @@ import (
 var Devices sync.Map
 var server *transaction.Core
 var config = struct {
-	Serial       string
-	Realm        string
-	ListenAddr   string
-	Expires      int
-	AutoInvite   bool
-	MediaPortMin uint16
-	MediaPortMax uint16
+	Serial          string
+	Realm           string
+	ListenAddr      string
+	Expires         int
+	AutoInvite      bool
+	MediaPortMin    uint16
+	MediaPortMax    uint16
 	CatelogCallback string
 	RemoveCallback  string
-}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300,"",""}
+}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300, "", ""}
 
 func init() {
 	InstallPlugin(&PluginConfig{
@@ -66,7 +66,7 @@ func run() {
 		MediaIdleTimeout: 30,
 	}
 	s := transaction.NewCore(config)
-	s.OnInvite = onPublish // ����
+	s.OnInvite = onPublish // 推流
 	server = s
 	http.HandleFunc("/gb28181/list", func(w http.ResponseWriter, r *http.Request) {
 		sse := util.NewSSE(w, r.Context())
@@ -125,10 +125,10 @@ func run() {
 		}
 	})
 
-	http.HandleFunc("/gb28181/listAll", ListAll)       //�豸�б�
-	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //��ѯ¼��
-	http.HandleFunc("/gb28181/playBack", Playback)     // ��ѯ�󲥷�¼��
-	http.HandleFunc("/gb28181/playRecord", PlayRecord) // ��ѯ������¼�� �ϲ����������ӿ�
+	http.HandleFunc("/gb28181/listAll", ListAll)       //设备列表
+	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //查询录像信息
+	http.HandleFunc("/gb28181/playBack", Playback)     // 播放查询到的录像
+	http.HandleFunc("/gb28181/playRecord", PlayRecord) // 查询并播放，上面两个接口合并而来
 	s.Start()
 }
 func onPublish(channel *transaction.Channel, streamUrl string) (port int) {
