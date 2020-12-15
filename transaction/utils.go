@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"github.com/Monibuca/plugin-gb28181/sip"
+	"github.com/Monibuca/plugin-gb28181/shim"	
 	"fmt"
 	"net"
 	"strings"
@@ -18,6 +19,9 @@ import (
 func getMessageTransactionID(m *sip.Message) string {
 	if m.GetMethod() == sip.ACK {
 		//TODO：在匹配服务端事物的ACK中，创建事务的请求的方法为INVITE。所以ACK消息匹配事物的时候需要注意？？？？
+	}
+	if tid := shim.GetTidFromResponse(m, shim.RecordInfo); tid != "" {
+		return tid
 	}
 	return string(m.GetMethod()) + "_" + m.GetBranch()
 }

@@ -10,8 +10,9 @@ import (
 	"os"
 	"sync"
 	"time"
-
+	"github.com/Monibuca/plugin-gb28181/msgstore"
 	"github.com/Monibuca/plugin-gb28181/sip"
+	"github.com/Monibuca/plugin-gb28181/shim"
 	"github.com/Monibuca/plugin-gb28181/transport"
 	"github.com/Monibuca/plugin-gb28181/utils"
 	"golang.org/x/net/html/charset"
@@ -368,6 +369,14 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 					switch temp.CmdType {
 					case "Catalog":
 						d.UpdateChannels(temp.DeviceList)
+						if c.config.CatelogCallback != "" {
+							go func() {
+								_, err := utils.Post(c.config.CatelogCallback+"?id="+d.ID, d.Channels, "application/json")
+								if err != nil {
+									log.Println("notify " + c.config.CatelogCallback + " error:" + err.Error())
+								}
+							}()
+						}
 					}
 				}
 				if ta == nil {
@@ -376,6 +385,9 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 			}
 			if ta != nil {
 				ta.event <- c.NewOutGoingMessageEvent(msg.BuildResponse(200))
+			}
+			if tid := shim.GetTidFromResponse(msg, shim.RecordInfo); tid != "" {
+				msgstore.StoreMsg(tid, msg.Body)
 			}
 		case sip.REGISTER:
 			if !ok {

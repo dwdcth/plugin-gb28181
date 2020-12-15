@@ -18,12 +18,15 @@ import (
 )
 
 var Devices sync.Map
+var server *transaction.Core
 var config = struct {
 	Serial       string
 	Realm        string
 	ListenAddr   string
 	Expires      int
 	AutoInvite   bool
+	CatelogCallback string
+	RemoveCallback  string
 	MediaPortMin uint16
 	MediaPortMax uint16
 }{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300}
@@ -63,7 +66,8 @@ func run() {
 		MediaIdleTimeout: 30,
 	}
 	s := transaction.NewCore(config)
-	s.OnInvite = onPublish
+	s.OnInvite = onPublish // 推流
+	server = s
 	http.HandleFunc("/gb28181/list", func(w http.ResponseWriter, r *http.Request) {
 		sse := util.NewSSE(w, r.Context())
 		for {
@@ -120,11 +124,19 @@ func run() {
 			w.WriteHeader(404)
 		}
 	})
+
+	http.HandleFunc("/gb28181/listAll", ListAll)       //设备列表
+	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //查询录像
+	http.HandleFunc("/gb28181/playBack", Playback)     // 查询后播放录像
+	http.HandleFunc("/gb28181/playRecord", PlayRecord) // 查询并播放录像 合并上面两个接口
 	s.Start()
 }
-func onPublish(channel *transaction.Channel) (port int) {
+func onPublish(channel *transaction.Channel, streamUrl string) (port int) {
 	rtpPublisher := new(rtp.RTP_PS)
-	if !rtpPublisher.Publish("gb28181/" + channel.DeviceID) {
+	if streamUrl == "" {
+		streamUrl = "gb28181/" + channel.DeviceID
+	}
+	if !rtpPublisher.Publish(streamUrl) {
 		return
 	}
 	defer func() {
