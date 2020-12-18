@@ -245,7 +245,7 @@ func (d *Device) Playback(channelIndex int, startTime int64, endTime int64) (int
 		return -1, "no chanel"
 	}
 	channel := &d.Channels[channelIndex]
-	streamUri := fmt.Sprintf("gb28181/%s_%d_%d", channel.DeviceID, startTime, endTime)
+	streamUri := fmt.Sprintf("gb28181/%s_%d_%d_%d_%s", channel.DeviceID, startTime, endTime,time.Now().Unix(),utils.RandomString(5))
 	port := d.core.OnInvite(channel, streamUri)
 	if port == 0 {
 		channel.Connected = true
