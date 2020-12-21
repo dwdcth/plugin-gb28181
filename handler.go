@@ -32,7 +32,7 @@ func makeJsonStrResp(errCode int, msg string, data string) []byte {
 	resp := fmt.Sprintf(`{
     "ErrorCode": %d,
     "Message": "%s",
-    "Data": %s,
+    "Data": "%s",
     "RefreshTime": %d
 }`, errCode, msg, data, time.Now().Unix())
 	return []byte(resp)
