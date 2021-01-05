@@ -39,7 +39,7 @@ func makeJsonStrResp(errCode int, msg string, data string) []byte {
 func ListAll(w http.ResponseWriter, r *http.Request) {
 	//sse := util.NewSSE(w, r.Context())
 	var list []*Device
-	server.Devices.Range(func(key, value interface{}) bool {
+	Devices.Range(func(key, value interface{}) bool {
 		list = append(list, value.(*Device))
 		return true
 	})
@@ -67,7 +67,7 @@ func RecordInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var resp string
-	if v, ok := server.Devices.Load(id); ok {
+	if v, ok := Devices.Load(id); ok {
 		resp, err = v.(*Device).RecordInfo(channel, startTime, endTime)
 	} else {
 		w.Write(makeResp(-1, "设备不存在或未连接", nil))
@@ -100,7 +100,7 @@ func Playback(w http.ResponseWriter, r *http.Request) {
 		w.Write(makeResp(-1, "时间范围错误", nil))
 		return
 	}
-	v, ok := server.Devices.Load(id)
+	v, ok := Devices.Load(id)
 	if ok {
 		status, streamUri := v.(*Device).Playback(channel, start, end)
 		if status != 200 {
@@ -135,7 +135,7 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resp string
-	v, ok := server.Devices.Load(id)
+	v, ok := Devices.Load(id)
 
 	if ok {
 		resp, err = v.(*Device).RecordInfo(channel, startTime, endTime)

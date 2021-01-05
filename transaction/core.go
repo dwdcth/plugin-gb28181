@@ -26,7 +26,6 @@ type Core struct {
 	*Config                                  //sip server配置信息
 	OnRegister   func(*sip.Message)
 	OnMessage    func(*sip.Message) bool
-	Devices      sync.Map //fixth
 }
 
 //初始化一个 Core，需要能响应请求，也要能发起请求
@@ -357,7 +356,6 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 				ta.state = NIST_PROCEEDING
 				c.AddTransaction(ta)
 			}
-			c.AddDevice(msg) // fixth 保存设备
 			c.OnRegister(msg)
 			ta.event <- c.NewOutGoingMessageEvent(msg.BuildResponse(200))
 		//case sip.INVITE:
@@ -424,18 +422,4 @@ func (c *Core) Send(msg *sip.Message) error {
 	}
 	c.tp.WritePacket(pkt)
 	return nil
-}
-func (c *Core) AddDevice(msg *sip.Message) *Device {
-	v := &Device{
-		ID:           msg.From.Uri.UserInfo(),
-		RegisterTime: time.Now(),
-		UpdateTime:   time.Now(),
-		Status:       string(sip.REGISTER),
-		core:         c,
-		from:         &sip.Contact{Uri: msg.StartLine.Uri, Params: make(map[string]string)},
-		to:           msg.To,
-		Addr:         msg.Via.GetSendBy(),
-	}
-	c.Devices.Store(msg.From.Uri.UserInfo(), v)
-	return v
 }
