@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-	"github.com/Monibuca/plugin-gb28181/transaction"
 )
 
 type Resp struct {
@@ -27,7 +26,6 @@ func makeResp(errCode int, msg string, data interface{}) []byte {
 	return resp
 }
 
-
 func makeJsonStrResp(errCode int, msg string, data string) []byte {
 	resp := fmt.Sprintf(`{
     "ErrorCode": %d,
@@ -40,9 +38,9 @@ func makeJsonStrResp(errCode int, msg string, data string) []byte {
 
 func ListAll(w http.ResponseWriter, r *http.Request) {
 	//sse := util.NewSSE(w, r.Context())
-	var list []*transaction.Device
+	var list []*Device
 	server.Devices.Range(func(key, value interface{}) bool {
-		list = append(list, value.(*transaction.Device))
+		list = append(list, value.(*Device))
 		return true
 	})
 
@@ -70,14 +68,14 @@ func RecordInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	var resp string
 	if v, ok := server.Devices.Load(id); ok {
-		resp, err = v.(*transaction.Device).RecordInfo(channel, startTime, endTime)
+		resp, err = v.(*Device).RecordInfo(channel, startTime, endTime)
 	} else {
 		w.Write(makeResp(-1, "设备不存在或未连接", nil))
 		return
 	}
 
 	if err != nil {
-		w.Write(makeResp(-1, "获取录像失败:"+err.Error(), nil))
+		w.Write(makeResp(-1, "获取录像失败,查询失败:"+err.Error(), nil))
 		return
 	}
 	w.Write(makeJsonStrResp(0, "ok", resp))
@@ -104,9 +102,9 @@ func Playback(w http.ResponseWriter, r *http.Request) {
 	}
 	v, ok := server.Devices.Load(id)
 	if ok {
-		status, streamUri := v.(*transaction.Device).Playback(channel, start, end)
+		status, streamUri := v.(*Device).Playback(channel, start, end)
 		if status != 200 {
-			w.Write(makeResp(-1, "获取录像失败", nil))
+			w.Write(makeResp(-1, "获取录像失败，点播失败", nil))
 			return
 		}
 		w.Write(makeJsonStrResp(0, "ok", streamUri))
@@ -140,14 +138,14 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 	v, ok := server.Devices.Load(id)
 
 	if ok {
-		resp, err = v.(*transaction.Device).RecordInfo(channel, startTime, endTime)
+		resp, err = v.(*Device).RecordInfo(channel, startTime, endTime)
 	} else {
 		w.Write(makeResp(-1, "设备不存在或未连接", nil))
 		return
 	}
 
 	if err != nil {
-		w.Write(makeResp(-1, "获取录像失败:"+err.Error(), nil))
+		w.Write(makeResp(-1, "获取录像失败，查询失败1:"+err.Error(), nil))
 		return
 	}
 
@@ -162,10 +160,10 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 		w.Write(makeResp(-1, "没有录像", nil))
 		return
 	}
-	status, streamUri := v.(*transaction.Device).Playback(channel, start, end)
+	status, streamUri := v.(*Device).Playback(channel, start, end)
 	if status != 200 {
-		w.Write(makeResp(-1, "获取录像失败", nil))
+		w.Write(makeResp(-1, "获取录像失败，点播失败2", nil))
 		return
 	}
-	w.Write(makeResp(0,"ok",streamUri))
+	w.Write(makeResp(0, "ok", streamUri))
 }

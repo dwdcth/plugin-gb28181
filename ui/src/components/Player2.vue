@@ -71,11 +71,12 @@
                 const result = await this.ajax({
                     type: "POST",
                     processData: false,
-                    data: localDescriptionData,
+                    data: JSON.stringify(localDescriptionData),
                     url: "/webrtc/play?streamPath=" + streamPath,
                     dataType: "json"
                 });
-                if (result.error) {
+                if (result.errmsg) {
+                    console.error(result.errmsg);
                     return;
                 }
                 //
@@ -99,6 +100,8 @@
     .player-wrap {
         width: 100%;
         height: 100%;
+        border-radius: 4px;
+        box-shadow: 0 0 5px #40d3fc, inset 0 0 5px #40d3fc, 0 0 0 1px #40d3fc;
     }
 
     .player-wrap video {

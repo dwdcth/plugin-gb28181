@@ -1,6 +1,8 @@
 package gb28181
 
 import (
+	"bytes"
+	"encoding/xml"
 	"log"
 	"math/rand"
 	"net"
@@ -9,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Monibuca/plugin-gb28181/sip"
+	"golang.org/x/net/html/charset"
 
 	. "github.com/Monibuca/engine/v2"
 	"github.com/Monibuca/engine/v2/util"
@@ -67,15 +72,34 @@ func run() {
 		CatelogCallback:  config.CatelogCallback,
 		RemoveCallback:   config.RemoveCallback,
 	}
-	s := transaction.NewCore(config)
-	s.OnInvite = onPublish // 推流
-	server = s
+
+	http.HandleFunc("/gb28181/query/records", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		id := r.URL.Query().Get("id")
+		channel, err := strconv.Atoi(r.URL.Query().Get("channel"))
+		if err != nil {
+			w.WriteHeader(404)
+		}
+		startTime := r.URL.Query().Get("startTime")
+		endTime := r.URL.Query().Get("endTime")
+		if v, ok := Devices.Load(id); ok {
+			w.WriteHeader(v.(*Device).QueryRecord(channel, startTime, endTime))
+		} else {
+			w.WriteHeader(404)
+		}
+	})
 	http.HandleFunc("/gb28181/list", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		sse := util.NewSSE(w, r.Context())
 		for {
-			var list []*transaction.Device
-			s.Devices.Range(func(key, value interface{}) bool {
-				list = append(list, value.(*transaction.Device))
+			var list []*Device
+			Devices.Range(func(key, value interface{}) bool {
+				device := value.(*Device)
+				if device.UpdateTime.Sub(device.RegisterTime) > time.Duration(config.RegisterValidity)*time.Second {
+					Devices.Delete(key)
+				} else {
+					list = append(list, device)
+				}
 				return true
 			})
 			sse.WriteJSON(list)
@@ -94,8 +118,8 @@ func run() {
 			w.WriteHeader(404)
 		}
 		ptzcmd := r.URL.Query().Get("ptzcmd")
-		if v, ok := s.Devices.Load(id); ok {
-			w.WriteHeader(v.(*transaction.Device).Control(channel, ptzcmd))
+		if v, ok := Devices.Load(id); ok {
+			w.WriteHeader(v.(*Device).Control(channel, ptzcmd))
 		} else {
 			w.WriteHeader(404)
 		}
@@ -104,11 +128,19 @@ func run() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		id := r.URL.Query().Get("id")
 		channel, err := strconv.Atoi(r.URL.Query().Get("channel"))
+		startTime := r.URL.Query().Get("startTime")
+		endTime := r.URL.Query().Get("endTime")
+		if startTime == "" {
+			startTime = "0"
+		}
+		if endTime == "" {
+			endTime = "0"
+		}
 		if err != nil {
 			w.WriteHeader(404)
 		}
-		if v, ok := s.Devices.Load(id); ok {
-			w.WriteHeader(v.(*transaction.Device).Invite(channel))
+		if v, ok := Devices.Load(id); ok {
+			w.WriteHeader(v.(*Device).Invite(channel, startTime, endTime))
 		} else {
 			w.WriteHeader(404)
 		}
@@ -120,33 +152,89 @@ func run() {
 		if err != nil {
 			w.WriteHeader(404)
 		}
-		if v, ok := s.Devices.Load(id); ok {
-			w.WriteHeader(v.(*transaction.Device).Bye(channel))
+		if v, ok := Devices.Load(id); ok {
+			w.WriteHeader(v.(*Device).Bye(channel))
 		} else {
 			w.WriteHeader(404)
 		}
 	})
-
+	s := transaction.NewCore(config)
+	s.OnRegister = func(msg *sip.Message) {
+		Devices.Store(msg.From.Uri.UserInfo(), &Device{
+			ID:           msg.From.Uri.UserInfo(),
+			RegisterTime: time.Now(),
+			UpdateTime:   time.Now(),
+			Status:       string(sip.REGISTER),
+			Core:         s,
+			from:         &sip.Contact{Uri: msg.StartLine.Uri, Params: make(map[string]string)},
+			to:           msg.To,
+			Addr:         msg.Via.GetSendBy(),
+			SipIP:        config.MediaIP,
+		})
+	}
+	s.OnMessage = func(msg *sip.Message) bool {
+		if v, ok := Devices.Load(msg.From.Uri.UserInfo()); ok {
+			d := v.(*Device)
+			if d.Status == string(sip.REGISTER) {
+				d.Status = "ONLINE"
+			}
+			d.UpdateTime = time.Now()
+			temp := &struct {
+				XMLName    xml.Name
+				CmdType    string
+				DeviceID   string
+				DeviceList []*Channel `xml:"DeviceList>Item"`
+				RecordList []*Record  `xml:"RecordList>Item"`
+			}{}
+			decoder := xml.NewDecoder(bytes.NewReader([]byte(msg.Body)))
+			decoder.CharsetReader = charset.NewReaderLabel
+			decoder.Decode(temp)
+			switch temp.XMLName.Local {
+			case "Notify":
+				go d.Query()
+			case "Response":
+				switch temp.CmdType {
+				case "Catalog":
+					d.UpdateChannels(temp.DeviceList)
+				case "RecordInfo":
+					d.UpdateRecord(temp.DeviceID, temp.RecordList)
+				}
+			}
+			return true
+		}
+		return false
+	}
+	//OnStreamClosedHooks.AddHook(func(stream *Stream) {
+	//	Devices.Range(func(key, value interface{}) bool {
+	//		device:=value.(*Device)
+	//		for _,channel := range device.Channels {
+	//			if stream.StreamPath == channel.RecordSP {
+	//
+	//			}
+	//		}
+	//	})
+	//})
+	// fix th
 	http.HandleFunc("/gb28181/listAll", ListAll)       //设备列表
 	http.HandleFunc("/gb28181/recordInfo", RecordInfo) //查询录像信息
 	http.HandleFunc("/gb28181/playBack", Playback)     // 播放查询到的录像
 	http.HandleFunc("/gb28181/playRecord", PlayRecord) // 查询并播放，上面两个接口合并而来
+	server = s
+
 	s.Start()
 }
-func onPublish(channel *transaction.Channel, streamUrl string) (port int) {
-	rtpPublisher := new(rtp.RTP_PS)
-	if streamUrl == "" {
-		streamUrl = "gb28181/" + channel.DeviceID
-	}
-	if !rtpPublisher.Publish(streamUrl) {
+
+func (d *Device) publish(name string) (port int, publisher *rtp.RTP_PS) {
+	publisher = new(rtp.RTP_PS)
+	if !publisher.Publish(name) {
 		return
 	}
 	defer func() {
 		if port == 0 {
-			rtpPublisher.Close()
+			publisher.Close()
 		}
 	}()
-	rtpPublisher.Type = "GB28181"
+	publisher.Type = "GB28181"
 	var conn *net.UDPConn
 	var err error
 	rang := int(config.MediaPortMax - config.MediaPortMin)
@@ -180,16 +268,35 @@ func onPublish(channel *transaction.Channel, streamUrl string) (port int) {
 		bufUDP := make([]byte, 1048576)
 		Printf("udp server start listen video port[%d]", port)
 		defer Printf("udp server stop listen video port[%d]", port)
-		defer conn.Close()
-		for rtpPublisher.Err() == nil {
+		for publisher.Err() == nil {
 			if err = conn.SetReadDeadline(time.Now().Add(time.Second * 30)); err != nil {
 				return
 			}
 			if n, _, err := conn.ReadFromUDP(bufUDP); err == nil {
-				rtpPublisher.PushPS(bufUDP[:n])
+				publisher.PushPS(bufUDP[:n])
 			} else {
 				Println("udp server read video pack error", err)
-				rtpPublisher.Close()
+				publisher.Close()
+				if !publisher.AutoUnPublish {
+					for _, channel := range d.Channels {
+						if channel.LiveSP == name {
+							channel.LiveSP = ""
+							channel.Connected = false
+							channel.Bye(channel.inviteRes)
+							break
+						}
+					}
+				}
+			}
+		}
+		conn.Close()
+		if publisher.AutoUnPublish {
+			for _, channel := range d.Channels {
+				if channel.RecordSP == name {
+					channel.RecordSP = ""
+					channel.Bye(channel.recordInviteRes)
+					break
+				}
 			}
 		}
 	}()

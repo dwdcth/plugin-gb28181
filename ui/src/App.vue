@@ -23,15 +23,22 @@
                                 <mu-button
                                     flat
                                     v-if="item.Connected"
-                                    @click="bye(prop.row.ID, $index)"
-                                    >断开</mu-button
-                                >
+                                    @click="bye(prop.row.ID, $index, item)"
+                                    >断开
+                                </mu-button>
                                 <mu-button
                                     v-else
                                     flat
                                     @click="invite(prop.row.ID, $index, item)"
                                     >连接
                                 </mu-button>
+                                <mu-button
+                                    flat
+                                    @click="
+                                        getRecords(prop.row.ID, $index, item)
+                                    "
+                                    >录像</mu-button
+                                >
                             </td>
                         </template>
                     </mu-data-table>
@@ -51,44 +58,49 @@
             </mu-data-table>
         </div>
         <div class="tabpanel" v-if="$parent.titleTabActive === 1">
-            <div class="search">
-                <i-select v-model="channelSelectedList" multiple>
-                    <Option
-                        v-for="(channel, index) in channelList"
-                        :value="channel"
-                        :label="channel.DeviceID + '(' + channel.Name + ')'"
-                        :key="index"
-                    >
-                    </Option>
-                </i-select>
-            </div>
             <div class="flex-box">
-                <template v-for="(channel, index) in channelSelectedList">
-                    <div class="flex-item" :key="index" v-if="channel.ID">
+                <template v-for="(channel, index) in channelShowList">
+                    <div class="flex-item" :key="index" v-if="channel.DeviceID">
                         <webrtc-player2
-                            :stream-path="'gb28181/' + channel.ID"
+                            :stream-path="'gb28181/' + channel.DeviceID"
                         ></webrtc-player2>
                     </div>
                 </template>
             </div>
+            <template v-if="channelList.length > 0">
+                <Page
+                    :total="channelList.length"
+                    :page-size="pageInfo.onePageSize"
+                    @on-change="handlePageChange"
+                ></Page>
+            </template>
         </div>
         <webrtc-player
             ref="player"
             @ptz="sendPtz"
             v-model="previewStreamPath"
-            :PublicIP="PublicIP"
         ></webrtc-player>
+        <records
+            ref="records"
+            v-model="recordModal"
+            :search="recordSearch"
+            :channel="currentChannel"
+            @close="initRecordSearch"
+        ></records>
     </div>
 </template>
 <script>
 import WebrtcPlayer from "./components/Player";
 import WebrtcPlayer2 from "./components/Player2";
+import Records from "./components/Records";
 import { getPTZCmd, PTZ_TYPE } from "./utils/ptz-cmd";
+import { getOneTimeRange } from "./utils";
 
 export default {
     components: {
         WebrtcPlayer,
         WebrtcPlayer2,
+        Records,
     },
     props: {
         ListenAddr: String,
@@ -103,7 +115,19 @@ export default {
             Devices: [],
             previewStreamPath: false,
             channelList: [],
-            channelSelectedList: [],
+            channelShowList: [],
+            pageInfo: {
+                onePageSize: 9,
+                totalPage: 0,
+                currentPage: 0,
+            },
+            currentChannel: null,
+            recordModal: false,
+            recordSearch: {
+                id: null,
+                channel: null,
+                deviceId: null,
+            },
             context: {
                 id: null,
                 channel: 0,
@@ -139,7 +163,7 @@ export default {
     },
     methods: {
         fetchlist() {
-            const listES = new EventSource(this.apiHost + "/gb28181/list");
+            const listES = new EventSource("/gb28181/list");
             listES.onmessage = (evt) => {
                 if (!evt.data) return;
                 this.Devices = JSON.parse(evt.data) || [];
@@ -150,9 +174,19 @@ export default {
                     if (channels.length > 0) {
                         channelList = channelList.concat(channels);
                     }
+                    if (this.recordSearch.id && this.recordSearch.deviceId) {
+                        const channel = channels.find((i) => {
+                            return (
+                                i.DeviceID === this.recordSearch.deviceId &&
+                                this.recordSearch.id === device.ID
+                            );
+                        });
+                        if (channel) this.currentChannel = channel;
+                    }
                 });
                 if (channelList.length > 0) {
                     this.channelList = channelList;
+                    this.updatePageInfo(channelList.length);
                 }
             };
             this.$once("hook:destroyed", () => listES.close());
@@ -164,9 +198,7 @@ export default {
                 item,
             };
             this.previewStreamPath = true;
-            this.$nextTick(() =>
-                this.$refs.player.play("gb28181/" + item.DeviceID)
-            );
+            this.$nextTick(() => this.$refs.player.play(item.LiveSP));
         },
         sendPtz(options) {
             const ptzCmd = getPTZCmd(options);
@@ -193,6 +225,35 @@ export default {
                     }, 500);
                 });
         },
+
+        sendQueryRecords(options) {},
+
+        handlePageChange(page) {
+            let showList = [];
+            const onePageSize = this.pageInfo.onePageSize;
+            const firstIndex = page * onePageSize - onePageSize;
+            const lastIndex = page * onePageSize - 1;
+            showList = this.channelList.filter((item, index) => {
+                return index >= firstIndex && index <= lastIndex;
+            });
+
+            this.channelShowList = showList;
+            if (showList.length > 0) {
+                this.pageInfo.currentPage = page;
+            }
+        },
+        updatePageInfo(totalSize) {
+            const onePageSize = this.pageInfo.onePageSize;
+            let totalPage = totalSize / onePageSize;
+
+            if (totalSize % onePageSize > 0) {
+                totalPage = totalPage + 1;
+            }
+            this.pageInfo.totalPage = totalPage;
+            if (this.pageInfo.currentPage === 0) {
+                this.handlePageChange(1);
+            }
+        },
         invite(id, channel, item) {
             this.ajax.get("/gb28181/invite", { id, channel }).then((x) => {
                 item.Connected = true;
@@ -202,6 +263,20 @@ export default {
             this.ajax.get("/gb28181/bye", { id, channel }).then((x) => {
                 item.Connected = false;
             });
+        },
+
+        getRecords(id, channel, item) {
+            this.recordSearch.id = id;
+            this.recordSearch.channel = channel;
+            this.recordSearch.deviceId = item.DeviceID;
+            this.recordModal = true;
+        },
+
+        initRecordSearch() {
+            this.recordModal = false;
+            this.recordSearch.id = null;
+            this.recordSearch.channel = null;
+            this.recordSearch.deviceId = null;
         },
     },
 };
@@ -216,6 +291,7 @@ export default {
 .flex-item {
     flex: 0 0 33.3333%;
     height: 275px;
+    box-sizing: border-box;
     padding: 10px;
 }
 </style>

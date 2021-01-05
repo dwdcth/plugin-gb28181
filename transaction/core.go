@@ -1,22 +1,17 @@
 package transaction
 
 import (
-	"bytes"
 	"context"
-	"encoding/xml"
 	"fmt"
-	"io"
-	"log"
+	"github.com/Monibuca/plugin-gb28181/msgstore"
+	"github.com/Monibuca/plugin-gb28181/shim"
+	"github.com/Monibuca/plugin-gb28181/sip"
+	"github.com/Monibuca/plugin-gb28181/transport"
+	"github.com/Monibuca/plugin-gb28181/utils"
 	"net"
 	"os"
 	"sync"
 	"time"
-	"github.com/Monibuca/plugin-gb28181/msgstore"
-	"github.com/Monibuca/plugin-gb28181/sip"
-	"github.com/Monibuca/plugin-gb28181/shim"
-	"github.com/Monibuca/plugin-gb28181/transport"
-	"github.com/Monibuca/plugin-gb28181/utils"
-	"golang.org/x/net/html/charset"
 )
 
 //Core: transactions manager
@@ -28,9 +23,10 @@ type Core struct {
 	mutex        sync.RWMutex                //transactions的锁
 	removeTa     chan string                 //要删除transaction的时候，通过chan传递tid
 	tp           transport.ITransport        //transport
-	config       *Config                     //sip server配置信息
-	Devices      sync.Map
-	OnInvite     func(*Channel,string) int
+	*Config                                  //sip server配置信息
+	OnRegister   func(*sip.Message)
+	OnMessage    func(*sip.Message) bool
+	Devices      sync.Map //fixth
 }
 
 //初始化一个 Core，需要能响应请求，也要能发起请求
@@ -44,7 +40,7 @@ func NewCore(config *Config) *Core {
 		handlers:     make(map[State]map[Event]Handler),
 		transactions: make(map[string]*Transaction),
 		removeTa:     make(chan string, 10),
-		config:       config,
+		Config:       config,
 		ctx:          context.Background(),
 	}
 	if config.SipNetwork == "TCP" {
@@ -223,9 +219,7 @@ func (c *Core) Handler() {
 			os.Exit(1)
 		}
 	}()
-
 	ch := c.tp.ReadPacketChan()
-	timer := time.Tick(time.Second * 5)
 	//阻塞读取消息
 	for {
 		//fmt.Println("PacketHandler ========== SIP Client")
@@ -238,8 +232,6 @@ func (c *Core) Handler() {
 				fmt.Println("handler sip response message failed:", err.Error())
 				continue
 			}
-		case <-timer:
-			c.RemoveDead()
 		}
 	}
 }
@@ -253,8 +245,9 @@ func (c *Core) Handler() {
 //发送之后，就开启timer，超时重传，还要记录和修改每次超时时间。不超时的话，记得删掉timer
 //发送 register 消息
 func (c *Core) SendMessage(msg *sip.Message) *Response {
-	methond := msg.GetMethod()
-	fmt.Println("send message:", methond)
+	method := msg.GetMethod()
+	// data, _ := sip.Encode(msg)
+	fmt.Println("send message:", method)
 
 	e := c.NewOutGoingMessageEvent(msg)
 
@@ -269,7 +262,7 @@ func (c *Core) SendMessage(msg *sip.Message) *Response {
 		//如果是sip 消息事件，则将消息缓存，填充typo和state
 		if msg.IsRequest() {
 			//as uac
-			if msg.GetMethod() == sip.INVITE || msg.GetMethod() == sip.ACK {
+			if method == sip.INVITE || method == sip.ACK {
 				ta.typo = FSM_ICT
 				ta.state = ICT_PRE_CALLING
 			} else {
@@ -306,7 +299,7 @@ func (c *Core) SendMessage(msg *sip.Message) *Response {
 //响应消息则需要匹配到请求，让请求的transaction来处理。
 //TODO：参考srs和osip的流程，以及文档，做最终处理。需要将逻辑分成两层：TU 层和 transaction 层
 func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
-	//fmt.Println("packet content:", string(p.Data))
+	// fmt.Println("packet content:", string(p.Data))
 	var msg *sip.Message
 	msg, err = sip.Decode(p.Data)
 	if err != nil {
@@ -347,46 +340,13 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 			c.Send(msg.BuildResponse(200))
 			return
 		case sip.MESSAGE:
-			if v, ok := c.Devices.Load(msg.From.Uri.UserInfo()); ok {
-				d := v.(*Device)
-				if d.Status == string(sip.REGISTER) {
-					d.Status = "ONLINE"
-				}
-				d.UpdateTime = time.Now()
-				temp := &struct {
-					XMLName    xml.Name
-					CmdType    string
-					DeviceList []Channel `xml:"DeviceList>Item"`
-				}{}
-				decoder := xml.NewDecoder(bytes.NewReader([]byte(msg.Body)))
-				decoder.CharsetReader = func(c string, i io.Reader) (io.Reader, error) {
-					return charset.NewReaderLabel(c, i)
-				}
-				decoder.Decode(temp)
-				switch temp.XMLName.Local {
-				case "Notify":
-					go d.Query()
-				case "Response":
-					switch temp.CmdType {
-					case "Catalog":
-						d.UpdateChannels(temp.DeviceList)
-						if c.config.CatelogCallback != "" {
-							go func() {
-								_, err := utils.Post(c.config.CatelogCallback+"?id="+d.ID, d.Channels, "application/json")
-								if err != nil {
-									log.Println("notify " + c.config.CatelogCallback + " error:" + err.Error())
-								}
-							}()
-						}
-					}
-				}
-				if ta == nil {
-					c.Send(msg.BuildResponse(200))
-				}
+			if c.OnMessage(msg) && ta == nil {
+				c.Send(msg.BuildResponse(200))
 			}
 			if ta != nil {
 				ta.event <- c.NewOutGoingMessageEvent(msg.BuildResponse(200))
 			}
+			//fixth
 			if tid := shim.GetTidFromResponse(msg, shim.RecordInfo); tid != "" {
 				msgstore.StoreMsg(tid, msg.Body)
 			}
@@ -397,7 +357,8 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 				ta.state = NIST_PROCEEDING
 				c.AddTransaction(ta)
 			}
-			c.AddDevice(msg)
+			c.AddDevice(msg) // fixth 保存设备
+			c.OnRegister(msg)
 			ta.event <- c.NewOutGoingMessageEvent(msg.BuildResponse(200))
 		//case sip.INVITE:
 		//	ta.typo = FSM_IST
