@@ -221,7 +221,7 @@ func run() {
 	http.HandleFunc("/gb28181/playBack", Playback)     // 播放查询到的录像
 	http.HandleFunc("/gb28181/playRecord", PlayRecord) // 查询并播放，上面两个接口合并而来
 	server = s
-
+	go RemoveDead(s, &Devices) //fixth
 	s.Start()
 }
 

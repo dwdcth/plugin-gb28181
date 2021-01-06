@@ -219,7 +219,6 @@ func (c *Core) Handler() {
 		}
 	}()
 	ch := c.tp.ReadPacketChan()
-	timer := time.Tick(time.Second * 30)
 
 	//阻塞读取消息
 	for {
@@ -233,8 +232,6 @@ func (c *Core) Handler() {
 				fmt.Println("handler sip response message failed:", err.Error())
 				continue
 			}
-		case <-timer:
-			c.RemoveDead()
 		}
 	}
 }
@@ -305,7 +302,7 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 	// fmt.Println("packet content:", string(p.Data))
 	var msg *sip.Message
 	msg, err = sip.Decode(p.Data)
-	fmt.Printf("sip msg:%#v\n",msg)
+	fmt.Printf("sip msg:%#v\n", msg)
 	if err != nil {
 		fmt.Println("parse sip message failed:", err.Error())
 		return ErrorParse

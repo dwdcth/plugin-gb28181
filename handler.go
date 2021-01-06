@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -191,4 +192,29 @@ func RemoveCallback(c *transaction.Core, d *Device) {
 			}
 		}()
 	}
+}
+
+func RemoveDead(c *transaction.Core, devices *sync.Map) {
+	tick := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-tick.C:
+			devices.Range(func(k, v interface{}) bool {
+				device := v.(*Device)
+				if device.UpdateTime.Sub(device.RegisterTime) > time.Duration(c.Config.RegisterValidity)*time.Second {
+					devices.Delete(k)
+					if c.Config.RemoveCallback != "" {
+						go func() {
+							_, err := utils.Post(c.Config.RemoveCallback, device, "application/json")
+							if err != nil {
+								log.Println("notify " + c.Config.RemoveCallback + " error:" + err.Error())
+							}
+						}()
+					}
+				}
+				return true
+			})
+		}
+	}
+
 }
