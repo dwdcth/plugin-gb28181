@@ -10,6 +10,7 @@ require (
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/golang-module/carbon v1.2.4
+	github.com/json-iterator/go v1.1.10
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/pion/rtp v1.6.0 // indirect

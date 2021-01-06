@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Monibuca/plugin-gb28181/transaction"
 	"github.com/Monibuca/plugin-gb28181/utils"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/golang-module/carbon"
 	"log"
 	"net/http"
@@ -175,7 +176,8 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 func CatelogCallback(c *transaction.Core, d *Device) {
 	if c.Config.CatelogCallback != "" {
 		go func() {
-			data, _ := json.Marshal(d.Channels)
+			//data, _ :=   json.Marshal(d.Channels)
+			data, _ :=   jsoniter.Marshal(d.Channels)
 			_, err := utils.Post(c.Config.CatelogCallback+"?id="+d.ID, data, "application/json")
 			if err != nil {
 				log.Println("notify " + c.Config.CatelogCallback + " error:" + err.Error())
