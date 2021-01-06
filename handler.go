@@ -3,7 +3,10 @@ package gb28181
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Monibuca/plugin-gb28181/transaction"
+	"github.com/Monibuca/plugin-gb28181/utils"
 	"github.com/golang-module/carbon"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -166,4 +169,15 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(makeResp(0, "ok", streamUri))
+}
+
+func CatelogCallback(c *transaction.Core, d *Device) {
+	if c.Config.CatelogCallback != "" {
+		go func() {
+			_, err := utils.Post(c.Config.CatelogCallback+"?id="+d.ID, d.Channels, "application/json")
+			if err != nil {
+				log.Println("notify " + c.Config.CatelogCallback + " error:" + err.Error())
+			}
+		}()
+	}
 }

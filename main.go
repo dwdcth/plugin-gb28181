@@ -196,6 +196,7 @@ func run() {
 				switch temp.CmdType {
 				case "Catalog":
 					d.UpdateChannels(temp.DeviceList)
+					CatelogCallback(s, d) //fixth
 				case "RecordInfo":
 					d.UpdateRecord(temp.DeviceID, temp.RecordList)
 				}
