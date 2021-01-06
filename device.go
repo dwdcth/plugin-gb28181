@@ -37,7 +37,8 @@ type Channel struct {
 	RegisterWay  int
 	Secrecy      int
 	Status       string
-	ChannelEx    //自定义属性
+	ChannelEx           //自定义属性
+	IPAddress    string `xml:"IPAddress"` //fixth
 }
 
 func (c *Channel) MarshalJSON() ([]byte, error) {
