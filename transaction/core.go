@@ -301,6 +301,7 @@ func (c *Core) HandleReceiveMessage(p *transport.Packet) (err error) {
 	// fmt.Println("packet content:", string(p.Data))
 	var msg *sip.Message
 	msg, err = sip.Decode(p.Data)
+	fmt.Printf("sip msg:%#v\n",msg)
 	if err != nil {
 		fmt.Println("parse sip message failed:", err.Error())
 		return ErrorParse
