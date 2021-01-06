@@ -181,3 +181,14 @@ func CatelogCallback(c *transaction.Core, d *Device) {
 		}()
 	}
 }
+
+func RemoveCallback(c *transaction.Core, d *Device) {
+	if c.Config.RemoveCallback != "" {
+		go func() {
+			_, err := utils.Post(c.Config.RemoveCallback, d, "application/json")
+			if err != nil {
+				log.Println("notify " + c.Config.RemoveCallback + " error:" + err.Error())
+			}
+		}()
+	}
+}
