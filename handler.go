@@ -175,7 +175,8 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 func CatelogCallback(c *transaction.Core, d *Device) {
 	if c.Config.CatelogCallback != "" {
 		go func() {
-			_, err := utils.Post(c.Config.CatelogCallback+"?id="+d.ID, d.Channels, "application/json")
+			data, _ := json.Marshal(d.Channels)
+			_, err := utils.Post(c.Config.CatelogCallback+"?id="+d.ID, data, "application/json")
 			if err != nil {
 				log.Println("notify " + c.Config.CatelogCallback + " error:" + err.Error())
 			}
@@ -186,7 +187,8 @@ func CatelogCallback(c *transaction.Core, d *Device) {
 func RemoveCallback(c *transaction.Core, d *Device) {
 	if c.Config.RemoveCallback != "" {
 		go func() {
-			_, err := utils.Post(c.Config.RemoveCallback, d, "application/json")
+			data, _ := json.Marshal(d)
+			_, err := utils.Post(c.Config.RemoveCallback, data, "application/json")
 			if err != nil {
 				log.Println("notify " + c.Config.RemoveCallback + " error:" + err.Error())
 			}
@@ -205,7 +207,8 @@ func RemoveDead(c *transaction.Core, devices *sync.Map) {
 					devices.Delete(k)
 					if c.Config.RemoveCallback != "" {
 						go func() {
-							_, err := utils.Post(c.Config.RemoveCallback, device, "application/json")
+							data, _ := json.Marshal(device)
+							_, err := utils.Post(c.Config.RemoveCallback, data, "application/json")
 							if err != nil {
 								log.Println("notify " + c.Config.RemoveCallback + " error:" + err.Error())
 							}
