@@ -37,7 +37,7 @@ type Channel struct {
 	RegisterWay  int
 	Secrecy      int
 	Status       string
-	ChannelEx    `json:"-"`                //自定义属性
+	ChannelEx           //自定义属性
 	IPAddress    string `json:"IPAddress"` //fixth
 }
 
@@ -52,6 +52,14 @@ func (c *Channel) MarshalJSON() ([]byte, error) {
 		"LiveSP":       c.LiveSP,
 		"Records":      c.Records,
 		"Connected":    c.Connected,
+		"IPAddress":    c.IPAddress, //fixth
+		"Model":        c.Model,
+		"Owner":        c.Owner,
+		"CivilCode":    c.CivilCode,
+		"Parental":     c.Parental,
+		"SafetyWay":    c.SafetyWay,
+		"RegisterWay":  c.RegisterWay,
+		"Secrecy":      c.Secrecy,
 	}
 	return json.Marshal(data)
 }
