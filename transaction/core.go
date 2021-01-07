@@ -225,8 +225,10 @@ func (c *Core) Handler() {
 		//fmt.Println("PacketHandler ========== SIP Client")
 		select {
 		case tid := <-c.removeTa:
+			fmt.Printf("RemoveTa %s", tid)
 			c.DelTransaction(tid)
 		case p := <-ch:
+			fmt.Printf("收到消息 %s", string(p.Data))
 			err := c.HandleReceiveMessage(p)
 			if err != nil {
 				fmt.Println("handler sip response message failed:", err.Error())
