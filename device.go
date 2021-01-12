@@ -240,8 +240,6 @@ func (d *Device) Invite(channelIndex int, start, end string) int {
 	invite.ContentLength = len(invite.Body)
 	invite.Subject = fmt.Sprintf("%s:%s,%s:0", channel.DeviceID, ssrc, config.Serial)
 	response := d.SendMessage(invite)
-	inviteMsg, _ := json.Marshal(invite)
-	fmt.Printf("invite msg:\n%s\ninvite response statuscode: %d\n", inviteMsg, response.Code)
 	if response.Code == 200 {
 		if start == "0" {
 			channel.inviteRes = response.Data
