@@ -222,3 +222,63 @@ func RemoveDead(c *transaction.Core, devices *sync.Map) {
 	}
 
 }
+
+// 直播
+func Play(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.URL.Query().Get("id")
+	channelIdx, err := strconv.Atoi(r.URL.Query().Get("channel"))
+	startTime := r.URL.Query().Get("startTime")
+	endTime := r.URL.Query().Get("endTime")
+	if startTime == "" {
+		startTime = "0"
+	}
+	if endTime == "" {
+		endTime = "0"
+	}
+	if err != nil {
+		w.Write(makeResp(1, "channel参数错误1", nil))
+		return
+	}
+	if v, ok := Devices.Load(id); ok {
+		d := v.(*Device)
+		if channelIdx >= len(d.Channels) {
+			w.Write(makeResp(2, "channel参数错误2", nil))
+			return
+		}
+		channel := d.Channels[channelIdx]
+		stream := channel.GetPublishStreamPath("0")
+		status := v.(*Device).Invite(channelIdx, startTime, endTime)
+		if status == 200 {
+			w.Write(makeResp(0, "success", stream))
+			return
+		} else {
+			w.Write(makeResp(-1, "播放失败", nil))
+			return
+		}
+	} else {
+		w.Write(makeResp(3, "设备不存在", nil))
+		return
+	}
+}
+
+func Stop(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.URL.Query().Get("id")
+	channelIdx, err := strconv.Atoi(r.URL.Query().Get("channel"))
+	if err != nil {
+		w.Write(makeResp(1, "channel参数错误1", nil))
+		return
+	}
+	if v, ok := Devices.Load(id); ok {
+		w.Write(makeResp(v.(*Device).Bye(channelIdx), "", nil))
+		return
+	} else {
+		w.Write(makeResp(3, "设备不存在", nil))
+		return
+	}
+}
