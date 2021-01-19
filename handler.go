@@ -3,6 +3,7 @@ package gb28181
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Monibuca/engine/v2"
 	"github.com/Monibuca/plugin-gb28181/transaction"
 	"github.com/Monibuca/plugin-gb28181/utils"
 	"github.com/golang-module/carbon"
@@ -250,6 +251,10 @@ func Play(w http.ResponseWriter, r *http.Request) {
 		}
 		channel := d.Channels[channelIdx]
 		stream := channel.GetPublishStreamPath("0")
+		if engine.FindStream(stream) != nil {
+			w.Write(makeResp(0, "success exist", stream))
+			return
+		}
 		status := v.(*Device).Invite(channelIdx, startTime, endTime)
 		if status == 200 {
 			w.Write(makeResp(0, "success", stream))
