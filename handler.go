@@ -252,10 +252,7 @@ func Play(w http.ResponseWriter, r *http.Request) {
 		channel := d.Channels[channelIdx]
 		stream := channel.GetPublishStreamPath("0")
 		if engine.FindStream(stream) != nil {
-			w.Write(makeResp(0, "success exist", struct {
-				StreamPath string
-				Type       int
-			}{StreamPath: stream, Type: 1}))
+			w.Write(makeResp(0, "success exist", stream))
 			return
 		}
 		status := v.(*Device).Invite(channelIdx, startTime, endTime)
