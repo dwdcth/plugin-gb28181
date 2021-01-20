@@ -251,7 +251,9 @@ func Play(w http.ResponseWriter, r *http.Request) {
 		}
 		channel := d.Channels[channelIdx]
 		stream := channel.GetPublishStreamPath("0")
-		if engine.FindStream(stream) != nil {
+
+		gbStream := engine.FindStream(stream)
+		if gbStream != nil && gbStream.StreamInfo.Type == "GB28181" {
 			w.Write(makeResp(0, "success exist", stream))
 			return
 		}
