@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var lastCatelogUpdate int64 = 0
+
 type Resp struct {
 	ErrorCode   int         `json:"ErrorCode"`
 	Message     string      `json:"Message"`
@@ -175,6 +177,11 @@ func PlayRecord(w http.ResponseWriter, r *http.Request) {
 
 func CatelogCallback(c *transaction.Core, d *Device) {
 	if c.Config.CatelogCallback != "" {
+		now := time.Now().Unix()
+		if now-lastCatelogUpdate < 3 { //3秒更新一次
+			return
+		}
+		lastCatelogUpdate = now
 		go func() {
 			data, _ := json.Marshal(d.Channels)
 			//data, _ :=   jsoniter.Marshal(d.Channels)
