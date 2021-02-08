@@ -198,7 +198,7 @@ func CatelogCallbackTicker(c *transaction.Core, devices *sync.Map) {
 		return
 	}
 
-	tick := time.NewTicker(5 * time.Second) // 5秒更新一次
+	tick := time.NewTicker(time.Duration(c.Config.CatelogCallbackTick) * time.Second) // 5秒更新一次
 	//size := 100
 	for {
 		select {
