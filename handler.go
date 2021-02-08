@@ -8,6 +8,7 @@ import (
 	"github.com/Monibuca/plugin-gb28181/utils"
 	"github.com/golang-module/carbon"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -190,6 +191,40 @@ func CatelogCallback(c *transaction.Core, d *Device) {
 				log.Println("notify " + c.Config.CatelogCallback + " error:" + err.Error())
 			}
 		}()
+	}
+}
+
+func CatelogCallbackTicker(c *transaction.Core, devices *sync.Map) {
+	if c.Config.CatelogCallback == "" {
+		return
+	}
+
+	tick := time.NewTicker(5 * time.Second) // 5秒更新一次
+	size := 100
+	for {
+		select {
+		case <-tick.C:
+			devices.Range(func(k, v interface{}) bool {
+				d := v.(*Device)
+				channelNum := len(d.Channels)
+				pageNum := math.Ceil(float64(channelNum) / float64(size))
+				for i := 0; i < int(pageNum); i++ {
+					start := i * size
+					end := (i+1)*size - 1
+					if end > channelNum {
+						end = channelNum - 1
+					}
+					data, _ := json.Marshal(d.Channels[start:end])
+					_, err := utils.Post(c.Config.CatelogCallback+"?id="+d.ID, data, "application/json")
+					if err != nil {
+						log.Println("notify " + c.Config.CatelogCallback + " error:" + err.Error())
+					}
+					log.Printf("updatecallback sum:%d,index:%d,start:%d,end:%d\n", channelNum, i, start, end)
+				}
+
+				return true
+			})
+		}
 	}
 }
 

@@ -196,7 +196,7 @@ func run() {
 				switch temp.CmdType {
 				case "Catalog":
 					d.UpdateChannels(temp.DeviceList)
-					CatelogCallback(s, d) //fixth
+					//CatelogCallback(s, d) //fixth
 				case "RecordInfo":
 					d.UpdateRecord(temp.DeviceID, temp.RecordList)
 				}
@@ -224,6 +224,7 @@ func run() {
 	http.HandleFunc("/gb28181/stop", Stop)
 	server = s
 	go RemoveDead(s, &Devices) //fixth
+	go CatelogCallbackTicker(s,&Devices)
 	s.Start()
 }
 
