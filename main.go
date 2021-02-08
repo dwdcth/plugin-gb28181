@@ -25,16 +25,17 @@ import (
 var Devices sync.Map
 var server *transaction.Core
 var config = struct {
-	Serial          string
-	Realm           string
-	ListenAddr      string
-	Expires         int
-	AutoInvite      bool
-	MediaPortMin    uint16
-	MediaPortMax    uint16
-	CatelogCallback string
-	RemoveCallback  string
-}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300, "", ""}
+	Serial              string
+	Realm               string
+	ListenAddr          string
+	Expires             int
+	AutoInvite          bool
+	MediaPortMin        uint16
+	MediaPortMax        uint16
+	CatelogCallback     string
+	RemoveCallback      string
+	CatelogCallbackTick int
+}{"34020000002000000001", "3402000000", "127.0.0.1:5060", 3600, true, 58200, 58300, "", "", 10}
 
 func init() {
 	InstallPlugin(&PluginConfig{
@@ -64,13 +65,14 @@ func run() {
 		HeartbeatInterval: 60,
 		HeartbeatRetry:    3,
 
-		AudioEnable:      true,
-		WaitKeyFrame:     true,
-		MediaPortMin:     config.MediaPortMin,
-		MediaPortMax:     config.MediaPortMax,
-		MediaIdleTimeout: 30,
-		CatelogCallback:  config.CatelogCallback,
-		RemoveCallback:   config.RemoveCallback,
+		AudioEnable:         true,
+		WaitKeyFrame:        true,
+		MediaPortMin:        config.MediaPortMin,
+		MediaPortMax:        config.MediaPortMax,
+		MediaIdleTimeout:    30,
+		CatelogCallback:     config.CatelogCallback,
+		RemoveCallback:      config.RemoveCallback,
+		CatelogCallbackTick: config.CatelogCallbackTick,
 	}
 
 	http.HandleFunc("/gb28181/query/records", func(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +226,7 @@ func run() {
 	http.HandleFunc("/gb28181/stop", Stop)
 	server = s
 	go RemoveDead(s, &Devices) //fixth
-	go CatelogCallbackTicker(s,&Devices)
+	go CatelogCallbackTicker(s, &Devices)
 	s.Start()
 }
 
