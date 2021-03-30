@@ -17,7 +17,7 @@ import (
 	"github.com/Monibuca/plugin-gb28181/sip"
 	"golang.org/x/net/html/charset"
 
-	"github.com/Monibuca/engine/v2/util"
+	. "github.com/Monibuca/engine/v2"
 	"github.com/Monibuca/plugin-gb28181/transaction"
 	rtp "github.com/Monibuca/plugin-rtp"
 	. "github.com/logrusorgru/aurora"
