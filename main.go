@@ -3,6 +3,8 @@ package gb28181
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
+	"github.com/Monibuca/plugin-gb28181/utils"
 	"log"
 	"math/rand"
 	"net"
@@ -15,7 +17,6 @@ import (
 	"github.com/Monibuca/plugin-gb28181/sip"
 	"golang.org/x/net/html/charset"
 
-	. "github.com/Monibuca/engine/v2"
 	"github.com/Monibuca/engine/v2/util"
 	"github.com/Monibuca/plugin-gb28181/transaction"
 	rtp "github.com/Monibuca/plugin-rtp"
@@ -188,9 +189,19 @@ func run() {
 				DeviceList []*Channel `xml:"DeviceList>Item"`
 				RecordList []*Record  `xml:"RecordList>Item"`
 			}{}
-			decoder := xml.NewDecoder(bytes.NewReader([]byte(msg.Body)))
+			bodyBytes := []byte(msg.Body)
+			decoder := xml.NewDecoder(bytes.NewReader(bodyBytes))
 			decoder.CharsetReader = charset.NewReaderLabel
-			decoder.Decode(temp)
+			err := decoder.Decode(temp)
+			if err != nil {
+				bodyBytes, _ = utils.GbkToUtf8(bodyBytes)
+				decoder := xml.NewDecoder(bytes.NewReader(bodyBytes))
+				decoder.CharsetReader = charset.NewReaderLabel
+				err = decoder.Decode(temp)
+			}
+			if err != nil {
+				fmt.Printf("decode err %s\n", err.Error())
+			}
 			switch temp.XMLName.Local {
 			case "Notify":
 				go d.Query()

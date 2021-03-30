@@ -1,7 +1,12 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
+	"io/ioutil"
 	"math/rand"
 )
 
@@ -33,4 +38,15 @@ func RandomString(n int, allowedChars ...[]rune) string {
 	}
 
 	return string(b)
+}
+
+//fixth
+func GbkToUtf8(s []byte) ([]byte, error) {
+	reader := transform.NewReader(bytes.NewReader(s), simplifiedchinese.GBK.NewDecoder())
+	d, e := ioutil.ReadAll(reader)
+	if e != nil {
+		fmt.Printf("decode GbkToUtf8 err %s\n", e.Error())
+		return s, e
+	}
+	return d, nil
 }
