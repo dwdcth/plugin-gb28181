@@ -269,6 +269,9 @@ func (d *Device) Bye(channelIndex int) int {
 		channel.inviteRes = nil
 		channel.Connected = false
 	}()
+	if channel == nil {
+		return 1
+	}
 	return channel.Bye(channel.inviteRes).Code
 }
 func (c *Channel) Bye(res *sip.Message) *transaction.Response {
