@@ -261,6 +261,9 @@ func (d *Device) Invite(channelIndex int, start, end string) int {
 	return response.Code
 }
 func (d *Device) Bye(channelIndex int) int {
+	if channelIndex >= len(d.Channels) { //fixth
+		return 1
+	}
 	channel := d.Channels[channelIndex]
 	defer func() {
 		channel.inviteRes = nil
