@@ -272,7 +272,11 @@ func (d *Device) Bye(channelIndex int) int {
 	if channel == nil {
 		return 1
 	}
-	return channel.Bye(channel.inviteRes).Code
+	resp := channel.Bye(channel.inviteRes)
+	if resp == nil {
+		return 1
+	}
+	return resp.Code
 }
 func (c *Channel) Bye(res *sip.Message) *transaction.Response {
 	if res == nil {
