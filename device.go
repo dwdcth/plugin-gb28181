@@ -9,6 +9,8 @@ import (
 	"github.com/Monibuca/plugin-gb28181/transaction"
 	"github.com/Monibuca/plugin-gb28181/utils"
 	xj "github.com/basgys/goxml2json" //fixth
+	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -222,7 +224,18 @@ func (d *Device) Invite(channelIndex int, start, end string) int {
 		channel.Connected = true
 		return 304
 	}
-	ssrc := "0200000001"
+	//fixth
+	_ssrc := make([]byte, 10)
+	if start != "" {
+		_ssrc[0] = '1'
+	} else {
+		_ssrc[0] = '0'
+	}
+	copy(_ssrc[1:6], []byte(config.Serial[3:8]))
+	randNum := rand.Intn(10000)
+	copy(_ssrc[6:], []byte(strconv.Itoa(randNum)))
+	ssrc := string(_ssrc)
+	//ssrc := "0200000001"
 	sdpInfo := []string{"v=0", fmt.Sprintf("o=%s 0 0 IN IP4 %s", d.Serial, d.SipIP), "s=Play", "u=" + channel.DeviceID + ":0", "c=IN IP4 " + d.SipIP, fmt.Sprintf("t=%s %s", start, end), fmt.Sprintf("m=video %d RTP/AVP 96 97 98", port), "a=recvonly", "a=rtpmap:96 PS/90000", "a=rtpmap:97 MPEG4/90000", "a=rtpmap:98 H264/90000", "y=" + ssrc}
 	if start != "0" {
 		sdpInfo[2] = "s=Playback"
