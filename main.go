@@ -209,7 +209,7 @@ func run() {
 			case "Response":
 				switch temp.CmdType {
 				case "Catalog":
-					if  temp.DeviceList = nil || len(temp.DeviceList) == 0 {
+					if  temp.DeviceList == nil || len(temp.DeviceList) == 0 {
 						return true
 					}
 					d.UpdateChannels(temp.DeviceList)
