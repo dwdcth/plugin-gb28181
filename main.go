@@ -209,6 +209,9 @@ func run() {
 			case "Response":
 				switch temp.CmdType {
 				case "Catalog":
+					if  temp.DeviceList = nil || len(temp.DeviceList) == 0 {
+						return true
+					}
 					d.UpdateChannels(temp.DeviceList)
 					//CatelogCallback(s, d) //fixth
 				case "RecordInfo":
